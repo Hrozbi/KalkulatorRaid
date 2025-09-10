@@ -1,0 +1,318 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>GearFinder — Raid Shadow Legends (demo)</title>
+<style>
+  :root{
+    --bg:#0f1720; --card:#0b1220; --accent:#1f93ff; --muted:#9aa7bf;
+    --glass: rgba(255,255,255,0.03);
+    color-scheme: dark;
+    font-family: Inter, "Segoe UI", Roboto, system-ui, Arial;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0; background:linear-gradient(180deg,#071021 0%, #071522 100%);
+    color:#e6f0ff; min-height:100vh; padding:16px;
+  }
+  header{display:flex;gap:12px;align-items:center;margin-bottom:12px}
+  header h1{font-size:18px;margin:0}
+  .layout{display:grid;grid-template-columns:1fr;gap:12px;max-width:980px;margin:0 auto}
+  .card{background:var(--card);border-radius:12px;padding:12px;box-shadow:0 6px 18px rgba(2,6,23,0.6)}
+  label{display:block;font-size:13px;color:var(--muted);margin-bottom:6px}
+  select, input[type="text"], button{width:100%;padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,0.04);background:var(--glass);color:inherit;font-size:15px}
+  .row{display:flex;gap:8px}
+  .row > *{flex:1}
+  .small{font-size:13px;color:var(--muted)}
+  .results{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px;margin-top:10px}
+  .slot{background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01)); padding:12px;border-radius:10px}
+  .slot h3{margin:0;font-size:15px}
+  .stat{font-size:13px;color:var(--muted);margin-top:6px}
+  .item-list{margin-top:8px;display:flex;flex-direction:column;gap:6px}
+  .item{padding:8px;border-radius:8px;background:rgba(255,255,255,0.02);display:flex;justify-content:space-between;align-items:center}
+  .score{font-weight:700;color:var(--accent)}
+  footer{margin-top:14px;font-size:13px;color:var(--muted);text-align:center}
+  .controls{display:flex;gap:8px;flex-wrap:wrap}
+  .btn{border:none;cursor:pointer}
+  .btn.accent{background:var(--accent);color:#042233}
+  .kbd{display:inline-block;padding:6px 8px;background:rgba(255,255,255,0.03);border-radius:6px;font-size:12px;color:var(--muted)}
+  @media (min-width:900px){
+    .layout{grid-template-columns: 360px 1fr;}
+    header{justify-content:center}
+  }
+</style>
+</head>
+<body>
+<header>
+  <img src="data:image/svg+xml,%3Csvg width='32' height='32' viewBox='0 0 24 24' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Ccircle cx='12' cy='12' r='10' stroke='%231f93ff' stroke-width='1.6'/%3E%3Cpath d='M7 12h10' stroke='%231f93ff' stroke-width='1.6' stroke-linecap='round'/%3E%3C/svg%3E" alt="" style="height:36px;width:36px;border-radius:8px;background:rgba(255,255,255,0.02);padding:6px"/>
+  <h1>GearFinder — подбор экипировки для RSL (демо)</h1>
+</header>
+
+<div class="layout">
+  <div class="card">
+    <label for="hero">Выбери героя</label>
+    <select id="hero"></select>
+
+    <label for="mode" style="margin-top:10px">Режим боя</label>
+    <select id="mode">
+      <option value="clan_boss">Clan Boss</option>
+      <option value="arena">Arena</option>
+      <option value="dungeons">Dungeons</option>
+      <option value="campaign">Campaign</option>
+    </select>
+
+    <label style="margin-top:10px">Индивидуальные приоритеты (доп. веса)</label>
+    <div class="row">
+      <input id="w_speed" type="text" placeholder="Скорость (скорость: +/−)" />
+      <input id="w_acc" type="text" placeholder="Точность (ACC: +/−)" />
+    </div>
+
+    <div style="margin-top:10px" class="controls">
+      <button id="run" class="btn accent">Подобрать экипировку</button>
+      <button id="reset" class="btn">Сбросить</button>
+      <button id="export" class="btn">Экспорт JSON</button>
+    </div>
+
+    <p class="small" style="margin-top:10px">
+      Это демо: база предметов и героев небольшая. При желании я добавлю импорт твоего инвентаря и расширенную базу.
+    </p>
+  </div>
+
+  <div class="card">
+    <div style="display:flex;justify-content:space-between;align-items:center">
+      <div>
+        <strong id="summaryTitle">Результат</strong>
+        <div class="small" id="summaryDesc">Выбери героя и режим — нажми «Подобрать экипировку»</div>
+      </div>
+      <div class="kbd">Моб. готов</div>
+    </div>
+
+    <div class="results" id="resultsArea" aria-live="polite" style="margin-top:12px">
+      <!-- slots results -->
+    </div>
+
+    <div style="margin-top:12px" id="buildJSON" class="small" hidden></div>
+  </div>
+</div>
+
+<footer class="card" style="margin-top:12px;max-width:980px;margin-left:auto;margin-right:auto">
+  <div>© Demo — GearFinder. Поддерживает мобильные браузеры. Чтобы расширить — пришли список героев и инвентаря, я подключу.</div>
+</footer>
+
+<script>
+/* ========== Demo data ========== */
+
+/*
+ Items: each item has:
+  - id, name, slot
+  - stats: {spd, atkPct, hpPct, defPct, acc, critRate, critDmg, res, defPen, atkFlat ...}
+  - tags (optional)
+*/
+
+const ITEMS = [
+  {id:1,name:"Swift Boots +22 SPD", slot:"Boots", stats:{spd:22}},
+  {id:2,name:"Speedy Boots +12 SPD", slot:"Boots", stats:{spd:12}},
+  {id:3,name:"Colossus Helmet +30% HP", slot:"Helmet", stats:{hpPct:30}},
+  {id:4,name:"Cruel Axe +30% ATK", slot:"Weapon", stats:{atkPct:30}},
+  {id:5,name:"Accuracy Ring +30 ACC", slot:"Ring", stats:{acc:30}},
+  {id:6,name:"Defeat Amulet +20 DEF%", slot:"Amulet", stats:{defPct:20}},
+  {id:7,name:"Resist Banner +45 RES", slot:"Banner", stats:{res:45}},
+  {id:8,name:"Crit Necklace +20% CR", slot:"Necklace", stats:{critRate:20}},
+  {id:9,name:"Crit Damage Token +50% CDMG", slot:"Token", stats:{critDmg:50}},
+  {id:10,name:"HP Chest +15% HP", slot:"Chest", stats:{hpPct:15}},
+  {id:11,name:"Accuracy Gloves +15 ACC", slot:"Gloves", stats:{acc:15}},
+  {id:12,name:"Razor Shield +25% DEF", slot:"Shield", stats:{defPct:25}},
+  {id:13,name:"Speed Banner +18 SPD", slot:"Banner", stats:{spd:18}},
+  {id:14,name:"Life Ring +10% HP", slot:"Ring", stats:{hpPct:10}},
+  {id:15,name:"Penetrating Stabber +30 DEF PEN", slot:"Weapon", stats:{defPen:30}},
+  // ... add more items as needed
+];
+
+/* Heroes: small demo list */
+const HEROES = [
+  {id:"kael", name:"Kael (mage)", role:"attack", preferred:["atkPct","critRate","critDmg"]},
+  {id:"seeker", name:"Seeker (support)", role:"support", preferred:["acc","spd"]},
+  {id:"war_sage", name:"War Sage (tank)", role:"tank", preferred:["hpPct","defPct","res"]},
+  {id:"xandar", name:"Xandar (agile)", role:"speed", preferred:["spd","acc","critRate"]},
+];
+
+/* Mode weight templates (base weights for stats per mode)
+   Higher => more valuable in that mode
+*/
+const MODE_WEIGHTS = {
+  clan_boss: {
+    hpPct: 1.5, defPct: 1.0, acc: 1.4, defPen: 1.6, spd: 0.6, critRate: 0.5, critDmg: 0.6, res: 0.8
+  },
+  arena: {
+    spd: 1.8, critRate: 1.2, critDmg: 1.2, acc: 1.0, hpPct: 0.6, defPen:0.4
+  },
+  dungeons: {
+    acc: 1.2, spd:1.0, hpPct:1.1, res:0.9, defPct:0.8
+  },
+  campaign: {
+    atkPct:1.1, spd:1.0, hpPct:1.0, acc:0.8
+  }
+};
+
+/* default slot order to show */
+const SLOTS = ["Weapon","Helmet","Chest","Gloves","Boots","Shield","Ring","Amulet","Banner","Necklace","Token"];
+
+/* ========== App logic ========== */
+
+function init(){
+  const heroSel = document.getElementById("hero");
+  HEROES.forEach(h=>{
+    const o = document.createElement("option");
+    o.value = h.id; o.textContent = h.name;
+    heroSel.appendChild(o);
+  });
+
+  document.getElementById("run").addEventListener("click", runPicker);
+  document.getElementById("reset").addEventListener("click", resetForm);
+  document.getElementById("export").addEventListener("click", exportJSON);
+  resetForm();
+}
+
+function parseExtraWeight(input){
+  if(!input) return 0;
+  const v = parseFloat(input.replace(",","."));
+  return isNaN(v)?0:v;
+}
+
+function runPicker(){
+  const heroId = document.getElementById("hero").value;
+  const mode = document.getElementById("mode").value;
+  const extraSpd = parseExtraWeight(document.getElementById("w_speed").value);
+  const extraAcc = parseExtraWeight(document.getElementById("w_acc").value);
+
+  const hero = HEROES.find(h=>h.id===heroId);
+  if(!hero) return alert("Выберите героя");
+
+  const summaryTitle = document.getElementById("summaryTitle");
+  const summaryDesc = document.getElementById("summaryDesc");
+  summaryTitle.textContent = `Подбор для ${hero.name}`;
+  summaryDesc.textContent = `Режим: ${mode.replace("_"," ")} · Роль: ${hero.role}`;
+
+  // build effective weights by starting from mode weights,
+  // then add hero preferences and custom weights.
+  const base = Object.assign({}, MODE_WEIGHTS[mode] || {});
+  // apply hero preferences: boost those stats a little
+  hero.preferred.forEach(s=>{
+    base[s] = (base[s]||0) + 0.8;
+  });
+  // custom numeric boosts: treat these as additional SPD/ACC multipliers
+  if(extraSpd) base.spd = (base.spd||0) + (extraSpd/10);
+  if(extraAcc) base.acc = (base.acc||0) + (extraAcc/20);
+
+  // Score items per slot
+  const results = {}; // slot -> sorted items
+  for(const slot of SLOTS){
+    const items = ITEMS.filter(it=>it.slot===slot);
+    const scored = items.map(it=>{
+      const score = scoreItem(it, base);
+      return {...it, score: Math.round(score*100)/100};
+    }).sort((a,b)=>b.score - a.score);
+    results[slot] = scored;
+  }
+
+  renderResults(results);
+  // store current build JSON for export
+  window.lastBuild = {
+    hero: hero, mode: mode, weights: base, results: results, timestamp: new Date().toISOString()
+  };
+}
+
+function scoreItem(item, weights){
+  // calculate score: for each stat present, value * weight * scale
+  let s=0;
+  for(const [k,v] of Object.entries(item.stats)){
+    const w = weights[k] || 0.01; // tiny default weight for unknown stats
+    // scale different stat magnitudes: e.g., spd and acc are flat numbers, percent stats are percent
+    let scale=1;
+    if(k==="spd" || k==="acc" || k==="defPen" || k==="res" || k==="critRate") scale = 1;
+    else if(k==="critDmg") scale = 0.5;
+    else if(k.endsWith("Pct") || k.endsWith("pct") || k.includes("Pct")) scale = 0.8;
+    else scale = 0.7;
+
+    s += v * w * scale;
+  }
+  // small length bias to prefer more stats? (not needed now)
+  return s;
+}
+
+function renderResults(results){
+  const area = document.getElementById("resultsArea");
+  area.innerHTML = "";
+  for(const slot of SLOTS){
+    const col = document.createElement("div");
+    col.className = "slot";
+    const title = document.createElement("h3");
+    title.textContent = slot;
+    col.appendChild(title);
+
+    const list = document.createElement("div");
+    list.className = "item-list";
+    const items = results[slot] || [];
+    if(items.length===0){
+      const p = document.createElement("div"); p.className="stat"; p.textContent="Нет доступных предметов в этом слоте";
+      col.appendChild(p);
+    } else {
+      for(let i=0;i<Math.min(4,items.length);i++){
+        const it = items[i];
+        const row = document.createElement("div"); row.className = "item";
+        const left = document.createElement("div");
+        left.innerHTML = `<div style="font-weight:600">${it.name}</div><div class="stat">${statsToString(it.stats)}</div>`;
+        const right = document.createElement("div"); right.style.textAlign="right";
+        right.innerHTML = `<div class="score">${it.score}</div><div class="small">rank #${i+1}</div>`;
+        row.appendChild(left); row.appendChild(right);
+        list.appendChild(row);
+      }
+    }
+    col.appendChild(list);
+    area.appendChild(col);
+  }
+}
+
+function statsToString(stats){
+  const parts = [];
+  for(const [k,v] of Object.entries(stats)){
+    const nice = statNice(k);
+    parts.push(`${nice} ${v}${(k==="spd"||k==="acc"||k==="res"||k==="defPen")?"": "%"}`);
+  }
+  return parts.join(" · ");
+}
+
+function statNice(k){
+  const map = {spd:"SPD", acc:"ACC", hpPct:"HP%", atkPct:"ATK%", defPct:"DEF%", critRate:"CRIT%", critDmg:"CDMG", defPen:"DEF PEN", res:"RES"};
+  return map[k]||k.toUpperCase();
+}
+
+function resetForm(){
+  document.getElementById("hero").selectedIndex = 0;
+  document.getElementById("mode").value = "clan_boss";
+  document.getElementById("w_speed").value = "";
+  document.getElementById("w_acc").value = "";
+  document.getElementById("resultsArea").innerHTML = "";
+  document.getElementById("summaryTitle").textContent = "Результат";
+  document.getElementById("summaryDesc").textContent = "Выбери героя и режим — нажми «Подобрать экипировку»";
+  window.lastBuild = null;
+}
+
+function exportJSON(){
+  if(!window.lastBuild) return alert("Сначала выполните подбор (кнопка «Подобрать экипировку»)");
+  const blob = new Blob([JSON.stringify(window.lastBuild, null, 2)], {type:"application/json"});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `gearbuild_${window.lastBuild.hero.id}_${Date.now()}.json`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
+init();
+</script>
+</body>
+</html>
