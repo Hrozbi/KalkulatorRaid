@@ -1,4 +1,4 @@
-https://github.com/Hrozbi/KalkulatorRaid.git
+
 # ⚔️ KalkulatorRaid — GearFinder (Demo)
 
 Интерактивный инструмент для подбора экипировки в игре **Raid: Shadow Legends**.  
