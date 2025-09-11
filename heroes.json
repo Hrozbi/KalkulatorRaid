@@ -1,0 +1,39 @@
+[
+  {
+    "id": "kael",
+    "name": "Каэль",
+    "role": "Атака",
+    "preferred": [
+      "atkPct",
+      "critRate",
+      "critDmg"
+    ]
+  },
+  {
+    "id": "athel",
+    "name": "Атель",
+    "role": "Атака",
+    "preferred": [
+      "spd",
+      "atkPct"
+    ]
+  },
+  {
+    "id": "galek",
+    "name": "Галек",
+    "role": "Атака",
+    "preferred": [
+      "atkPct",
+      "critRate"
+    ]
+  },
+  {
+    "id": "elhain",
+    "name": "Элхейн",
+    "role": "Атака",
+    "preferred": [
+      "critRate",
+      "critDmg"
+    ]
+  }
+]

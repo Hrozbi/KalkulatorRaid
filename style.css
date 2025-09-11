@@ -1,0 +1,15 @@
+:root {
+  --bg:#0f1720; --card:#0b1220; --accent:#1f93ff; --muted:#9aa7bf;
+  color-scheme: dark;
+  font-family: Inter, "Segoe UI", Roboto, system-ui, Arial;
+}
+body {
+  margin:0; background:#071021; color:#e6f0ff; min-height:100vh; padding:16px;
+}
+header {text-align:center; margin-bottom:20px;}
+.layout {display:grid; grid-template-columns:1fr 2fr; gap:12px; max-width:1000px; margin:0 auto;}
+.card {background:var(--card); border-radius:12px; padding:12px;}
+.results {display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:10px;}
+.row {display:flex; gap:8px;}
+.btn {padding:10px; border-radius:8px; cursor:pointer;}
+.btn.accent {background:var(--accent); color:#fff;}
